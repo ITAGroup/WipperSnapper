@@ -41,6 +41,7 @@
     <Compile Include="Extensions\DataTableExtensions.cs" />
     <Compile Include="Extensions\EnumerableExtensions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SQL\Command.cs" />
     <Compile Include="SQL\Connection.cs" />
     <Compile Include="SQL\ConnectionPool.cs" />
   </ItemGroup>

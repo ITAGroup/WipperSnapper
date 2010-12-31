@@ -73,7 +73,7 @@
 		/// <summary>
 		/// The inner SqlConnection. I'm still debating whether to make this public or not
 		/// </summary>
-		protected System.Data.SqlClient.SqlConnection SqlConnection
+		protected internal System.Data.SqlClient.SqlConnection SqlConnection
 		{
 			get { return this._Connection; }
 		}
