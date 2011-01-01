@@ -92,18 +92,22 @@
 		/// <returns>A list of DTOs</returns>
 		public static List<T> FindMultiple<T>(string procedure, Dictionary<string, object> parameters, MapToDTODelegate<T> mapFunc)
 		{
-			//'Create return set
+			// Create return set
 			List<T> ret = new List<T>();
 
-			//'Creates a command to the stored procedure
-			using (Command cmd = GetCommand(procedure, parameters, null))
+			// Open/Retrieve connection
+			using (Connection conn = GetConnection())
 			{
-				//Query and read
-				using (IDataReader reader = cmd.ExecuteReader())
+				// Creates a command to the stored procedure
+				using (Command cmd = GetCommand(conn, procedure, parameters, null))
 				{
-					while (reader.Read())
+					// Query and read
+					using (IDataReader reader = cmd.ExecuteReader())
 					{
-						ret.Add(mapFunc(reader));
+						while (reader.Read())
+						{
+							ret.Add(mapFunc(reader));
+						}
 					}
 				}
 			}
@@ -131,11 +135,15 @@
 		/// <param name="outputParams">list of output parameters</param>
 		public static Dictionary<string, object> ExecuteVoidProcedure(string procedure, Dictionary<string, object> parameters, List<string> outputParams)
 		{
-			//Query
-			using (Command cmd = GetCommand(procedure, parameters, outputParams))
+			//Open/Retrieve Connection
+			using (Connection conn = GetConnection())
 			{
-				//Write back
-				return cmd.GetOutputParameterValues();
+				//Query
+				using (Command cmd = GetCommand(conn, procedure, parameters, outputParams))
+				{
+					//Write back
+					return cmd.GetOutputParameterValues();
+				}
 			}
 		}
 
@@ -148,13 +156,17 @@
 		/// <returns>A scalar value type result of the stored procedure</returns>
 		public static T ExecuteScalarProcedure<T>(string procedure, Dictionary<string, object> parameters) where T : struct
 		{
-			//Query
-			using (Command cmd = GetCommand(procedure, parameters, null))
+			//Open/Retrieve Connection
+			using (Connection conn = GetConnection())
 			{
-				dynamic scalar = cmd.ExecuteScalar();
+				//Query
+				using (Command cmd = GetCommand(conn, procedure, parameters, null))
+				{
+					dynamic scalar = cmd.ExecuteScalar();
 
-				//Write back
-				return (T)scalar;
+					//Write back
+					return (T)scalar;
+				}
 			}
 		}
 
@@ -226,7 +238,7 @@
 		{
 			//We'll know which connection string based on an app setting
 			string dbName = ConfigurationManager.AppSettings["ConnectionStringKey"];
-			if(string.IsNullOrWhiteSpace(dbName))
+			if (string.IsNullOrWhiteSpace(dbName))
 			{
 				throw new Exception("Missing App Setting: ConnectionStringKey");
 			}
@@ -238,7 +250,7 @@
 				throw new Exception("Missing Connection String For: " + dbName);
 			}
 
-			return Connection.GetConnection(dbName, connString.ConnectionString, true);
+			return Connection.GetConnection(dbName, connString.ConnectionString, false);
 		}
 
 		/// <summary>
@@ -248,11 +260,8 @@
 		/// <param name="procedure">The stored procedure to execute</param>
 		/// <param name="parameters">Dictionary of all parameters</param>
 		/// <returns>a DBCommand</returns>
-		private static Command GetCommand(string procedure, Dictionary<string, object> parameters, List<string> outputParams)
+		private static Command GetCommand(Connection conn, string procedure, Dictionary<string, object> parameters, List<string> outputParams)
 		{
-			// Get a connection
-			Connection conn = GetConnection();
-
 			// Create a command on the stored procedure
 			Command cmd = new Command(conn);
 
