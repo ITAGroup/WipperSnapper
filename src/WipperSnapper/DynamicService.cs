@@ -289,7 +289,6 @@
 		/// <remarks>You can write your own MapToDTODelegate</remarks>
 		static internal T MapToDTO<T>(IDataReader reader)
 		{
-
 			//Get the type
 			Type type = typeof(T);
 
