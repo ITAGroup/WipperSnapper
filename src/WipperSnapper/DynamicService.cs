@@ -19,11 +19,8 @@
 	/// This library is currently dependent on Enterprise Library and thus has practically no reliable transaction support.
 	/// 
 	/// Future Items:
-	/// - Remove the epic fail dependency to Enterprise Library
-	/// - Add in managed connection pool
 	/// - Add in managed SQL transactions with REAL nested transaction behavior: a concept that apparently is foreign to any other .NET library.
 	/// - Add in ORM feature - SQL building based on attributed objects
-	/// - Rewrite in C# to get around VB.NET's lack of real null support.
 	/// </summary>
 	public static class DynamicService
 	{
