@@ -32,7 +32,6 @@
 	/// - No "oh you're not using that wrong, didn't you know?
 	/// 
 	/// Future Items:
-	/// - Add in managed SQL transactions with REAL nested transaction behavior: a concept that apparently is foreign to any other .NET library.
 	/// - Add in ORM feature - SQL building based on attributed objects
 	/// </summary>
 	public static class WhipperSnapper
