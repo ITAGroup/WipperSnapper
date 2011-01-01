@@ -151,11 +151,17 @@
 
 		/// <summary>
 		/// Trash the connection and remove from the Connection Pool.
+		/// Note - a connection that has an active transaction will 
+		/// not be disposed. You must first commit/rollback the transaction.
 		/// </summary>
 		public void Dispose()
 		{
-			this.Disconnect();
-			Connection._EstablishedConnections.Remove(this);
+			//Only dispose of a connection if the transaction on it is done
+			if (this.ActiveTransaction == null)
+			{
+				this.Disconnect();
+				Connection._EstablishedConnections.Remove(this);
+			}
 		}
 	}
 
