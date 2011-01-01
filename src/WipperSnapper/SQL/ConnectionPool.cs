@@ -13,7 +13,7 @@
 	/// - Connections need to be assigned per thread. We can't have a connection shared between 2 threads due to transaction boundaries.
 	/// - We have to be very careful with who we give connections to so that we don't violate a possible transaction by opening multiple connections in 1 transaction.
 	/// - We can have multiple connections with the same database but multiple things going on in that connection.
-	/// - Thread IDs are NOT unique
+	/// - ThreadIDs are only unique for the lifetime of the thread. I just don't think we care if a new-yet-finished thread uses the connection of the old thread. 
 	/// </remarks>
 	public sealed class ConnectionPool
 	{
