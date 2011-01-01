@@ -127,11 +127,17 @@
 		/// </summary>
 		public void Dispose()
 		{
+			//The transaction MUST be disposed FIRST to remove themselves from the connection
 			this.Transaction.Dispose();
-			this.Connection.Dispose();
-			Session._manager.Remove();
 			this._Transaction = null;
-			this._Connection = null;
+
+			//Only root sessions should dispose of the connection
+			if (this.Parent == null)
+			{
+				this.Connection.Dispose();
+				Session._manager.Remove();
+				this._Connection = null;
+			}
 		}
 	}
 }
