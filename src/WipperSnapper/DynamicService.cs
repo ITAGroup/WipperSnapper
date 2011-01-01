@@ -2,14 +2,14 @@
 {
 
 	using System;
-	using System.Collections;
 	using System.Collections.Generic;
+	using System.Configuration;
 	using System.Data;
-	using System.Diagnostics;
 	using System.Data.Common;
 	using System.Reflection;
 	using System.Data.SqlClient;
 	using System.Linq;
+	using WipperSnapper.SQL;
 
 	/// <summary>
 	/// This is a simple library that helps relieve the pain of having to map SQL Query output to managed types. 
@@ -53,8 +53,7 @@
 		/// <returns>A single DTO result</returns>
 		public static T FindSingle<T>(string procedure, Dictionary<string, object> parameters, MapToDTODelegate<T> mapFunc)
 		{
-
-			dynamic result = FindMultiple<T>(procedure, parameters, mapFunc);
+			List<T> result = FindMultiple<T>(procedure, parameters, mapFunc);
 
 			if ((result.Count > 1))
 			{
@@ -67,10 +66,8 @@
 			}
 			else
 			{
-				return result(0);
-
+				return result[0];
 			}
-
 		}
 
 		/// <summary>
@@ -98,17 +95,14 @@
 		/// <returns>A list of DTOs</returns>
 		public static List<T> FindMultiple<T>(string procedure, Dictionary<string, object> parameters, MapToDTODelegate<T> mapFunc)
 		{
-			//'Create database connection (could be config driven)
-			Database db = GetDatabase();
-
 			//'Create return set
 			List<T> ret = new List<T>();
 
 			//'Creates a command to the stored procedure
-			using (DbCommand cmd = GetCommand(db, procedure, parameters, null))
+			using (Command cmd = GetCommand(procedure, parameters, null))
 			{
 				//Query and read
-				using (IDataReader reader = db.ExecuteReader(cmd))
+				using (IDataReader reader = cmd.ExecuteReader())
 				{
 					while (reader.Read())
 					{
@@ -140,16 +134,11 @@
 		/// <param name="outputParams">list of output parameters</param>
 		public static Dictionary<string, object> ExecuteVoidProcedure(string procedure, Dictionary<string, object> parameters, List<string> outputParams)
 		{
-			//Grab connection
-			Database db = GetDatabase();
-
 			//Query
-			using (cmd == GetCommand(db, procedure, parameters, outputParams))
+			using (Command cmd = GetCommand(procedure, parameters, outputParams))
 			{
-				db.ExecuteNonQuery(cmd);
-
 				//Write back
-				return WriteBackParameters(db, cmd, outputParams);
+				return cmd.GetOutputParameterValues();
 			}
 		}
 
@@ -162,13 +151,10 @@
 		/// <returns>A scalar value type result of the stored procedure</returns>
 		public static T ExecuteScalarProcedure<T>(string procedure, Dictionary<string, object> parameters) where T : struct
 		{
-			//Grab connection
-			Database db = GetDatabase();
-
 			//Query
-			using (cmd == GetCommand(db, procedure, parameters, null))
+			using (Command cmd = GetCommand(procedure, parameters, null))
 			{
-				dynamic scalar = db.ExecuteScalar(cmd);
+				dynamic scalar = cmd.ExecuteScalar();
 
 				//Write back
 				return (T)scalar;
@@ -213,12 +199,12 @@
 		/// </summary>
 		public static void BulkInsert(string tablename, DataTable data, Dictionary<string, string> mappings)
 		{
-			dynamic connstring = GetDatabase().ConnectionString;
+			dynamic connstring = GetConnection().ConnectionString;
 
 			using (SqlBulkCopy bulkcopy = new SqlBulkCopy(connstring, SqlBulkCopyOptions.UseInternalTransaction | SqlBulkCopyOptions.FireTriggers | SqlBulkCopyOptions.CheckConstraints))
 			{
 				bulkcopy.DestinationTableName = tablename;
-				bulkcopy.BulkCopyTimeout = 300;
+				bulkcopy.BulkCopyTimeout = 512;
 
 				//Bind mappings if they exist
 
@@ -239,10 +225,23 @@
 		/// <summary>
 		/// Gets a Database object. Connection Abstraction should be done here
 		/// </summary>
-		private static Database GetDatabase()
+		private static Connection GetConnection()
 		{
-			//'Create database connection (could be config driven)
-			return DatabaseFactory.CreateDatabase("Kohler");
+			//We'll know which connection string based on an app setting
+			string dbName = ConfigurationManager.AppSettings["ConnectionStringKey"];
+			if(string.IsNullOrWhiteSpace(dbName))
+			{
+				throw new Exception("Missing App Setting: ConnectionStringKey");
+			}
+
+			//Go get the connection string. If it's not there throw an informative exception (vs a null ref)
+			ConnectionStringSettings connString = ConfigurationManager.ConnectionStrings[dbName];
+			if (connString == null || string.IsNullOrWhiteSpace(connString.ConnectionString))
+			{
+				throw new Exception("Missing Connection String For: " + dbName);
+			}
+
+			return Connection.GetConnection(dbName, connString.ConnectionString, true);
 		}
 
 		/// <summary>
@@ -252,69 +251,24 @@
 		/// <param name="procedure">The stored procedure to execute</param>
 		/// <param name="parameters">Dictionary of all parameters</param>
 		/// <returns>a DBCommand</returns>
-		private static DbCommand GetCommand(Database db, string procedure, Dictionary<string, object> parameters, List<string> outputParams)
+		private static Command GetCommand(string procedure, Dictionary<string, object> parameters, List<string> outputParams)
 		{
+			// Get a connection
+			Connection conn = GetConnection();
 
-			//Create a command on the stored procedure
-			DbCommand cmd = db.GetStoredProcCommand(procedure);
+			// Create a command on the stored procedure
+			Command cmd = new Command(conn);
 
-			//'Add input parameters
-			//null check
-			if ((parameters == null))
-				parameters = new Dictionary<string, object>();
+			// Set sql to execute the stored proc
+			cmd.Sql = procedure;
 
-			foreach (KeyValuePair<string, object> kvp in parameters)
-			{
-				//Dim param = cmd.CreateParameter()
-				dynamic param = new SqlParameter();
-				param.ParameterName = kvp.Key;
-				if ((kvp.Value is DataTable))
-				{
-					param.SqlDbType = SqlDbType.Structured;
-				}
+			// Add input parameters - null check
+			if (parameters == null) parameters = new Dictionary<string, object>();
+			if (outputParams == null) outputParams = new List<string>();
 
-				//Add parameter direction
-				if (((outputParams != null) && outputParams.Contains(kvp.Key)))
-				{
-					param.Direction = ParameterDirection.InputOutput;
-					param.Size = 512;
-					//eh why not
-				}
-				else
-				{
-					param.Direction = ParameterDirection.Input;
-				}
-
-				//DB null if null
-				if ((kvp.Value == null))
-				{
-					param.Value = DBNull.Value;
-				}
-				else
-				{
-					param.Value = kvp.Value;
-				}
-
-				cmd.Parameters.Add(param);
-			}
-
-			//'Add outout parameters
-			if (((outputParams != null)))
-			{
-				foreach (string leftOver in outputParams.Except(parameters.Keys))
-				{
-					DbParameter param = cmd.CreateParameter();
-					param.ParameterName = leftOver;
-					param.Direction = ParameterDirection.Output;
-					param.Size = 512;
-					//eh why not
-
-					cmd.Parameters.Add(param);
-				}
-			}
-
-			//Set Long Timeout
-			cmd.CommandTimeout = 500;
+			// Set the parameters
+			cmd.AddInputParametersDictionary(parameters);
+			cmd.AddOutputParameters(outputParams);
 
 			return cmd;
 		}
@@ -416,32 +370,9 @@
 						//Set the value raw
 						prop.SetValue(inst, val, null);
 					}
-
 				}
 			}
-
 			return (T)inst;
-		}
-
-		/// <summary>
-		/// Writes output parameters back to the dictionary
-		/// (really, it just writes everything back to the parameter dictionary)
-		/// </summary>
-		private static Dictionary<string, object> WriteBackParameters(Database db, DbCommand cmd, List<string> outputParams)
-		{
-			Dictionary<string, object> ret = new Dictionary<string, object>();
-
-			if ((outputParams == null))
-			{
-				return ret;
-			}
-
-			foreach (string key in outputParams)
-			{
-				ret[key] = db.GetParameterValue(cmd, key);
-			}
-
-			return ret;
 		}
 
 		/// <summary>
@@ -487,7 +418,6 @@
 
 			return dict;
 		}
-
 	}
 
 	/// <summary>

@@ -4,6 +4,8 @@
 	using System.Collections.Generic;
 	using System.Linq;
 	using System.Data.SqlClient;
+	using System.Data.Sql;
+	using System.Data;
 
 	/// <summary>
 	/// Command is the basis for sending commands across the SQL Connection.
@@ -75,7 +77,7 @@
 		/// <summary>
 		/// Copy a dictionary of parameters to the command. Very useful.
 		/// </summary>
-		public void AddParametersDictionary(Dictionary<string, object> parms)
+		public void AddInputParametersDictionary(Dictionary<string, object> parms)
 		{
 			if (parms == null) 
 			{ 
@@ -87,6 +89,37 @@
 				this[kv.Key] = kv.Value;
 			}
 		}
+
+		/// <summary>
+		/// Adds a set of output parameters to the Command - useful when dealing with output parameters in stored procs.
+		/// - I strongly recommend not using output parameters due to their innate ugliness.
+		/// </summary>
+		public void AddOutputParameters(List<string> outputparams)
+		{
+			_OutputParams.AddRange(outputparams);
+		}
+		private List<string> _OutputParams = new List<string>();
+
+		/// <summary>
+		/// After executing the SQL (stored procedure), this method will retrieve the output parameters into a dictionary
+		/// where the key is the parameter name
+		/// </summary>
+		public Dictionary<string, object> GetOutputParameterValues()
+		{
+			Dictionary<string, object> output = new Dictionary<string, object>();
+
+			if (_OutputParams == null)
+			{
+				return output;
+			}
+
+			foreach (string key in _OutputParams)
+			{
+				output[key] = this._Command.Parameters[key];
+			}
+
+			return output;
+		}
 		#endregion
 
 		/// <summary>
@@ -97,18 +130,54 @@
 			// Copy parameters down
 			foreach (KeyValuePair<string, object> kvp in this._Params)
 			{
-				object value;
-				if (((object)kvp.Value) == null)
+				SqlParameter param = new SqlParameter();
+				param.ParameterName = kvp.Key;
+
+				//Special check for Table Types
+				if ((kvp.Value is DataTable))
 				{
-					// Null isn't null, it's dbnull - duh.
-					value = System.DBNull.Value;
+					param.SqlDbType = SqlDbType.Structured;
+				}
+
+				//Add parameter direction
+				if (((_OutputParams != null) && _OutputParams.Contains(kvp.Key)))
+				{
+					param.Direction = ParameterDirection.InputOutput;
+					param.Size = 512; //This came from debugging - we need a generic big size so we don't truncate.
 				}
 				else
 				{
-					value = kvp.Value;
+					param.Direction = ParameterDirection.Input;
 				}
-				this._Command.Parameters.Add(new SqlParameter(kvp.Key, value));
+
+				//Set value
+				if (((object)kvp.Value) == null)
+				{
+					// Null isn't null, it's dbnull - duh.
+					param.Value = System.DBNull.Value;
+				}
+				else
+				{
+					param.Value = kvp.Value;
+				}
+				this._Command.Parameters.Add(param);
 			}
+
+			//'Add outout parameters
+			if (((_OutputParams != null)))
+			{
+				foreach (string leftOver in _OutputParams.Except(_Params.Keys))
+				{
+					SqlParameter param = this._Command.CreateParameter();
+					param.ParameterName = leftOver;
+					param.Direction = ParameterDirection.Output;
+					param.Size = 512; //This came from debugging - we need a generic big size so we don't truncate.
+					this._Command.Parameters.Add(param);
+				}
+			}
+
+			//Set Long Timeout - sick of the 30 second crap.
+			this._Command.CommandTimeout = 500;
 		}
 
 		/// <summary>
