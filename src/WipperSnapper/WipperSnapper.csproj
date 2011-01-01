@@ -39,7 +39,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DynamicService.cs">
+    <Compile Include="Session\Session.cs" />
+    <Compile Include="Session\SessionManager.cs" />
+    <Compile Include="SQL\Transaction.cs" />
+    <Compile Include="WhipperSnapper.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Extensions\DataTableExtensions.cs" />
@@ -49,9 +52,7 @@
     <Compile Include="SQL\Connection.cs" />
     <Compile Include="SQL\ConnectionPool.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Session\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

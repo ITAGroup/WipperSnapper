@@ -50,6 +50,30 @@
 		}
 		protected Connection _Connection = null;
 
+		/// <summary>
+		/// Are we in a transaction?
+		/// </summary>
+		public bool IsInTransaction
+		{
+			get { return this.Transaction != null; }
+		}
+
+		/// <summary>
+		/// Gets the transaction that this command is in (based off the current connection)
+		/// </summary>
+		public Transaction Transaction
+		{
+			get { return this._Connection.ActiveTransaction; }
+		}
+
+		/// <summary>
+		/// Gets the SqlTransaction object (or null) running on the current connection.
+		/// </summary>
+		protected System.Data.SqlClient.SqlTransaction SqlTransaction
+		{
+			get { return this.Transaction == null ? null : this.Transaction.SqlTransaction; }
+		}
+
 
 		#region Parameters
 		/// <summary>
@@ -127,6 +151,9 @@
 		/// </summary>
 		private void _ExecuteSetup()
 		{
+			// Set transaction - I'm not sure if this matters actually but we'll do it for consistency's sake at least.
+			this._Command.Transaction = this.SqlTransaction;
+
 			// Copy parameters down
 			foreach (KeyValuePair<string, object> kvp in this._Params)
 			{

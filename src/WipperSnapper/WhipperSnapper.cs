@@ -10,19 +10,32 @@
 	using System.Data.SqlClient;
 	using System.Linq;
 	using WipperSnapper.SQL;
+	using WipperSnapper.Session;
 
 	/// <summary>
-	/// This is a simple library that helps relieve the pain of having to map SQL Query output to managed types. 
-	/// You're able to execute stored procedures directly and even provide your own DataReader - To - Object mapping
-	/// function should you so choose to. 
-	///
-	/// This library is currently dependent on Enterprise Library and thus has practically no reliable transaction support.
+	/// Whipper Snapper - someone who is unimportant but cheeky and presumptuous. 
+	/// 
+	/// Database abstraction is just that. It's annoying. It's *really* not the center of the universe but it's always treated as such. 
+	/// Why? Because it's a pain in the ass and defines how your system is coded. I'm sick of that nonsense. So, this is a library to
+	/// take away the pain of having to worry about how to get shit to your database.
+	/// 
+	/// This library does NOT attempt to define how you get your shit IN your database, only how to get shit TO your database. 
+	/// Defining how to get shit IN your database is presumptuous. You're a programmer, you can figure that part out on your own.
+	/// For better or worse.
+	/// 
+	/// To use this you only need to put the code in your solution and setup 1 config and a connection string. End of story. 
+	/// - No inheriting multiple base classs, implementing an interface, and writing your own factory.
+	/// - No writing types out into your web config
+	/// - No f*cking XML!  For the love of Christ i'm just transferring data. No godamn xml!
+	/// - No pre/post compilation.
+	/// - No "oh you shouldn't use this in a batch process" 
+	/// - No "oh you're not using that wrong, didn't you know?
 	/// 
 	/// Future Items:
 	/// - Add in managed SQL transactions with REAL nested transaction behavior: a concept that apparently is foreign to any other .NET library.
 	/// - Add in ORM feature - SQL building based on attributed objects
 	/// </summary>
-	public static class DynamicService
+	public static class WhipperSnapper
 	{
 
 		/// <summary>
@@ -79,7 +92,6 @@
 		{
 			return FindMultiple<T>(procedure, parameters, MapToDTO<T>);
 		}
-
 
 		/// <summary>
 		/// Finds multiple DTO from a stored procedure <paramref name="procedure" /> with the parameters <paramref name="parameters" />.
@@ -223,7 +235,6 @@
 					{
 						bulkcopy.ColumnMappings.Add(kvp.Key, kvp.Value);
 					}
-
 				}
 
 				bulkcopy.WriteToServer(data);
@@ -236,21 +247,30 @@
 		/// </summary>
 		private static Connection GetConnection()
 		{
-			//We'll know which connection string based on an app setting
-			string dbName = ConfigurationManager.AppSettings["ConnectionStringKey"];
-			if (string.IsNullOrWhiteSpace(dbName))
+			//If I'm in a session, default to that connection.
+			WipperSnapper.Session.Session ses = SessionManager.GetSessionForThisThread();
+			if (ses != null)
 			{
-				throw new Exception("Missing App Setting: ConnectionStringKey");
+				return ses.Connection;
 			}
-
-			//Go get the connection string. If it's not there throw an informative exception (vs a null ref)
-			ConnectionStringSettings connString = ConfigurationManager.ConnectionStrings[dbName];
-			if (connString == null || string.IsNullOrWhiteSpace(connString.ConnectionString))
+			else
 			{
-				throw new Exception("Missing Connection String For: " + dbName);
-			}
+				//We'll know which connection string based on an app setting
+				string dbName = ConfigurationManager.AppSettings["ConnectionStringKey"];
+				if (string.IsNullOrWhiteSpace(dbName))
+				{
+					throw new Exception("Missing App Setting: ConnectionStringKey");
+				}
 
-			return Connection.GetConnection(dbName, connString.ConnectionString, false);
+				//Go get the connection string. If it's not there throw an informative exception (vs a null ref)
+				ConnectionStringSettings connString = ConfigurationManager.ConnectionStrings[dbName];
+				if (connString == null || string.IsNullOrWhiteSpace(connString.ConnectionString))
+				{
+					throw new Exception("Missing Connection String For: " + dbName);
+				}
+
+				return Connection.GetConnection(dbName, connString.ConnectionString, false);
+			}
 		}
 
 		/// <summary>

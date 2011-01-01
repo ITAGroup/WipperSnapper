@@ -98,6 +98,25 @@
 
 
 		/// <summary>
+		/// Transaction for the connection
+		/// </summary>
+		public Transaction ActiveTransaction
+		{
+			get { return this._ActiveTransaction; }
+			protected internal set { this._ActiveTransaction = value; }
+		}
+		protected Transaction _ActiveTransaction = null;
+
+		/// <summary>
+		/// Called by the Transaction class when the transaction has ended
+		/// </summary>
+		internal void TransactionEnded()
+		{
+			this._ActiveTransaction = null;
+		}
+
+
+		/// <summary>
 		/// Initiates Connection. If we are already connected then this will disconnect first and reconnect.
 		/// </summary>
 		public void Connect()
