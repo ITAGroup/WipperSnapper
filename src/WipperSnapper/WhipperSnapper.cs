@@ -29,7 +29,7 @@
 	/// - No f*cking XML!  For the love of Christ i'm just transferring data. No godamn xml!
 	/// - No pre/post compilation.
 	/// - No "oh you shouldn't use this in a batch process" 
-	/// - No "oh you're not using that wrong, didn't you know?
+	/// - No "oh you're using that wrong, didn't you know?
 	/// 
 	/// Future Items:
 	/// - Add in ORM feature - SQL building based on attributed objects

@@ -162,7 +162,7 @@
 					// to rollback to. So - to commit we don't do anything.
 					break;
 				default:
-					throw new Exception("Unrecognized transaction type \"" + this.Type.ToString());
+					throw new Exception("Unrecognized transaction type \"" + this.Type.ToString() + "\", cannot commit it");
 			}
 
 			this._IsEnded = true;
@@ -198,7 +198,7 @@
 		/// </summary>
 		public void Dispose()
 		{
-			// If already ended then nothing to be done when disposing (the transaction has already been comitted or rolledback.
+			// If already ended then nothing to be done when disposing (the transaction has already been comitted or rolledback).
 			if (this.IsEnded) { return; }
 			this.Rollback();
 		}

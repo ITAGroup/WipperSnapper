@@ -71,12 +71,12 @@
 		/// <summary>
 		/// Unique identifier for the session - sessions are also thread specific
 		/// </summary>
-		public Guid SessionID { get; set; }
+		public Guid SessionID { get; private set; }
 
 		/// <summary>
 		/// The Parent Session if this session is nested. Otherwise null if not nested;
 		/// </summary>
-		public Session Parent { get; set; }
+		public Session Parent { get; protected set; }
 
 
 		/// <summary>
