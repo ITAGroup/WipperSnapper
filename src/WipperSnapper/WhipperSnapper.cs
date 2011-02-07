@@ -5,10 +5,8 @@
 	using System.Collections.Generic;
 	using System.Configuration;
 	using System.Data;
-	using System.Data.Common;
 	using System.Reflection;
 	using System.Data.SqlClient;
-	using System.Linq;
 	using WipperSnapper.SQL;
 	using WipperSnapper.Session;
 
@@ -153,6 +151,7 @@
 				using (Command cmd = GetCommand(conn, procedure, parameters, outputParams))
 				{
 					//Write back
+				    cmd.ExecuteNonQuery();
 					return cmd.GetOutputParameterValues();
 				}
 			}
@@ -268,7 +267,7 @@
 					throw new Exception("Missing Connection String For: " + dbName);
 				}
 
-				return Connection.GetConnection(dbName, connString.ConnectionString, false);
+				return Connection.GetConnection(dbName, connString.ConnectionString, true);
 			}
 		}
 

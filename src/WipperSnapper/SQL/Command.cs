@@ -6,6 +6,7 @@
 	using System.Data.SqlClient;
 	using System.Data.Sql;
 	using System.Data;
+    using System.Text.RegularExpressions;
 
 	/// <summary>
 	/// Command is the basis for sending commands across the SQL Connection.
@@ -153,8 +154,22 @@
 		{
 			// Set transaction - I'm not sure if this matters actually but we'll do it for consistency's sake at least.
 			this._Command.Transaction = this.SqlTransaction;
+		    
+            // Set the command text
+            this._Command.CommandText = this.Sql;
+            
+            // Set command type
+            Regex ex = new Regex("^(\\s*)((SELECT)|(INSERT)|(DELETE)|(UPDATE)|(GRANT))\\s.*", RegexOptions.IgnoreCase);
+            if(ex.IsMatch(this.Sql))
+            {
+                this._Command.CommandType = CommandType.Text;
+            }
+            else
+            {
+                this._Command.CommandType = CommandType.StoredProcedure;
+            }
 
-			// Copy parameters down
+		    // Copy parameters down
 			foreach (KeyValuePair<string, object> kvp in this._Params)
 			{
 				SqlParameter param = new SqlParameter();

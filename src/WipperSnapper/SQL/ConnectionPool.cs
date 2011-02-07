@@ -88,14 +88,14 @@
 			lock (ConnectionPool._pool)
 			{
 				ConnectionIdentifier id = new ConnectionIdentifier(Thread.CurrentThread.ManagedThreadId, conn.UniqueConnectionName);
-				if (ConnectionPool._pool.ContainsKey(id))
-				{
-					ConnectionPool._pool.Remove(id);
-				}
-				else
-				{
-					throw new Exception("Could not find a connection in the ConnectionPool, Name = " + conn.UniqueConnectionName + " ConnectionString: " + conn.ConnectionString);
-				}
+                if(_pool.ContainsKey(id))
+                {
+                    ConnectionPool._pool.Remove(id);
+			    }
+                else
+                {
+                    throw new Exception("Could not find a connection in the ConnectionPool, Name = " + conn.UniqueConnectionName + " ConnectionString: " + conn.ConnectionString);
+                }
 			}
 		}
 	}
@@ -118,7 +118,7 @@
 		public override bool Equals(object obj)
 		{
 			// I get criticism about this but I still argue it's technically correct and I prefer a false to an exception.
-			if (obj.GetType().Equals(typeof(ConnectionIdentifier)))
+			if (!obj.GetType().Equals(typeof(ConnectionIdentifier)))
 			{
 				return false;
 			}
