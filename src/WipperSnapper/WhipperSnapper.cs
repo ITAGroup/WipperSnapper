@@ -174,8 +174,24 @@
 				{
 					dynamic scalar = cmd.ExecuteScalar();
 
-					//Write back
-					return (T)scalar;
+                    //It is possible to receive null at this point, in which case just return the default value of T 
+                    if ((object.ReferenceEquals(scalar, DBNull.Value)))
+                    {
+                        scalar = default(T);
+                    }
+
+				    try
+				    {
+                        //Attempt to cast
+                        return (T)scalar;
+				    }
+				    catch (InvalidCastException)
+				    {
+				        //If cast failed, then provide a more detailed message stating what type was received and what type was expected
+				        throw new InvalidCastException(
+				            String.Format("Cannot cast what was received from the database: '{0}' to the specified type '{1}'",
+				                          scalar.GetType.FullName, typeof (T).FullName));
+				    }
 				}
 			}
 		}
@@ -377,7 +393,7 @@
 					dynamic val = reader[prop.Name];
 					if ((object.ReferenceEquals(val, DBNull.Value)))
 					{
-						val = null;
+						val = default(T);
 					}
 
 					//Special Type check
