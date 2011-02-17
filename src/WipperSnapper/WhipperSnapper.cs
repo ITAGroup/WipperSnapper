@@ -32,8 +32,82 @@
 	/// Future Items:
 	/// - Add in ORM feature - SQL building based on attributed objects
 	/// </summary>
-	public static class WhipperSnapper
+	public sealed class WhipperSnapper
 	{
+
+		/// <summary>
+		/// The whipper snapper instance (as well as the connections/transactions it uses) are tied to a particular connection string key.
+		/// </summary>
+		private string _ConnectionStringKey;
+
+		/// <summary>
+		/// Local reference to a session. This will only have a value if THIS WhipperSnapper instance created the session OR was constructed based on a session.
+		/// </summary>
+		private Session.Session _CreatedSession;
+
+		/// <summary>
+		/// The actual connection string for this instance.
+		/// </summary>
+		private string ConnectionString
+		{
+			get
+			{
+				//Go get the connection string. If it's not there throw an informative exception (vs a null ref)
+				ConnectionStringSettings connString = ConfigurationManager.ConnectionStrings[_ConnectionStringKey];
+				if (connString == null || string.IsNullOrWhiteSpace(connString.ConnectionString))
+				{
+					throw new Exception("Missing Connection String For: " + _ConnectionStringKey);
+				}
+				return connString.ConnectionString;
+			}
+		}
+
+		/// <summary>
+		/// Private constructor - we have to go through the factory properties/methods
+		/// </summary>
+		private WhipperSnapper(string ConnectionStringKey)
+		{
+			// Set the connection string key
+			this._ConnectionStringKey = ConnectionStringKey;
+
+			// Check for active session. If we're in a session and we're trying to open a connection to a different database - that isn't supported
+			Session.Session sess = Session.SessionManager.GetSessionForThisThread();
+			if (sess != null)
+			{
+				if (!string.Equals(sess.Connection.ConnectionString, this.ConnectionString, StringComparison.InvariantCultureIgnoreCase))
+				{
+					throw new Exception("Trying to open a connection to '" + this.ConnectionString + "' when we're IN an session for the connection '" + sess.Connection.ConnectionString + "'. WhipperSnapper (ADO.NET actually) doesn't support cross-database transactions. We can't do this.");
+				}
+			}
+		}
+
+		/// <summary>
+		/// Get a WhipperSnapper instance for the Default connection. This relies on an app setting 'DefaultConnectionStringKey' to be present. 
+		/// </summary>
+		public static WhipperSnapper Default
+		{
+			get
+			{
+				string DefaultConnectionKey = ConfigurationManager.AppSettings["DefaultConnectionStringKey"];
+				if (string.IsNullOrEmpty(DefaultConnectionKey))
+				{
+					throw new Exception("Missing AppSetting Key: DefaultConnectionStringKey.  This should be the connection string 'key' to what you consider the default connection.");
+				}
+				return new WhipperSnapper(DefaultConnectionKey);
+			}
+		}
+
+		/// <summary>
+		/// Gets a WhipperSnapper instance specifically for a connection string defined by <paramref name="ConnectionStringKey"/>
+		/// </summary>
+		/// <param name="ConnectionStringKey">The connection string to be used for this whippersnapper instance</param>
+		/// <returns></returns>
+		public static WhipperSnapper ForDatabase(string ConnectionStringKey)
+		{
+			return new WhipperSnapper(ConnectionStringKey);
+		}
+
+		#region Public Instance Methods
 
 		/// <summary>
 		/// Finds a single DTO from a stored procedure <paramref name="procedure" /> with the parameters <paramref name="parameters" />.
@@ -43,7 +117,7 @@
 		/// <param name="procedure">The name of the stored procedure to execute</param>
 		/// <param name="parameters">Parameters indexed by name to be passed to the procedure</param>
 		/// <returns>A single DTO result</returns>
-		public static T FindSingle<T>(string procedure, Dictionary<string, object> parameters)
+		public T FindSingle<T>(string procedure, Dictionary<string, object> parameters)
 		{
 			return FindSingle<T>(procedure, parameters, MapToDTO<T>);
 		}
@@ -58,7 +132,7 @@
 		/// <param name="parameters">Parameters indexed by name to be passed to the procedure</param>
 		/// <param name="mapFunc">The function used to create and map the result of the stored procedure to the DTO </param>
 		/// <returns>A single DTO result</returns>
-		public static T FindSingle<T>(string procedure, Dictionary<string, object> parameters, MapToDTODelegate<T> mapFunc)
+		public T FindSingle<T>(string procedure, Dictionary<string, object> parameters, MapToDTODelegate<T> mapFunc)
 		{
 			List<T> result = FindMultiple<T>(procedure, parameters, mapFunc);
 
@@ -85,7 +159,7 @@
 		/// <param name="procedure">The name of the stored procedure to execute</param>
 		/// <param name="parameters">Parameters indexed by name to be passed to the procedure</param>
 		/// <returns>A list of DTOs</returns>
-		public static List<T> FindMultiple<T>(string procedure, Dictionary<string, object> parameters)
+		public List<T> FindMultiple<T>(string procedure, Dictionary<string, object> parameters)
 		{
 			return FindMultiple<T>(procedure, parameters, MapToDTO<T>);
 		}
@@ -99,7 +173,7 @@
 		/// <param name="parameters">Parameters indexed by name to be passed to the procedure</param>
 		/// <param name="mapFunc">The function used to create and map 1 row result of the stored procedure to one DTO </param>
 		/// <returns>A list of DTOs</returns>
-		public static List<T> FindMultiple<T>(string procedure, Dictionary<string, object> parameters, MapToDTODelegate<T> mapFunc)
+		public List<T> FindMultiple<T>(string procedure, Dictionary<string, object> parameters, MapToDTODelegate<T> mapFunc)
 		{
 			// Create return set
 			List<T> ret = new List<T>();
@@ -130,7 +204,7 @@
 		/// </summary>
 		/// <param name="procedure">The procedure to execute</param>
 		/// <param name="parameters">Parameters to pass it</param>
-		public static void ExecuteVoidProcedure(string procedure, Dictionary<string, object> parameters)
+		public void ExecuteVoidProcedure(string procedure, Dictionary<string, object> parameters)
 		{
 			ExecuteVoidProcedure(procedure, parameters, null);
 		}
@@ -142,7 +216,7 @@
 		/// <param name="procedure">The procedure to execute</param>
 		/// <param name="parameters">Parameters to pass it</param>
 		/// <param name="outputParams">list of output parameters</param>
-		public static Dictionary<string, object> ExecuteVoidProcedure(string procedure, Dictionary<string, object> parameters, List<string> outputParams)
+		public Dictionary<string, object> ExecuteVoidProcedure(string procedure, Dictionary<string, object> parameters, List<string> outputParams)
 		{
 			//Open/Retrieve Connection
 			using (Connection conn = GetConnection())
@@ -151,7 +225,7 @@
 				using (Command cmd = GetCommand(conn, procedure, parameters, outputParams))
 				{
 					//Write back
-				    cmd.ExecuteNonQuery();
+					cmd.ExecuteNonQuery();
 					return cmd.GetOutputParameterValues();
 				}
 			}
@@ -164,7 +238,7 @@
 		/// <param name="procedure">The procedure to execute</param>
 		/// <param name="parameters">Parameters to pass into the stored procedure</param>
 		/// <returns>A scalar value type result of the stored procedure</returns>
-		public static T ExecuteScalarProcedure<T>(string procedure, Dictionary<string, object> parameters) where T : struct
+		public T ExecuteScalarProcedure<T>(string procedure, Dictionary<string, object> parameters) where T : struct
 		{
 			//Open/Retrieve Connection
 			using (Connection conn = GetConnection())
@@ -174,24 +248,24 @@
 				{
 					dynamic scalar = cmd.ExecuteScalar();
 
-                    //It is possible to receive null at this point, in which case just return the default value of T 
-                    if ((object.ReferenceEquals(scalar, DBNull.Value)))
-                    {
-                        scalar = default(T);
-                    }
+					//It is possible to receive null at this point, in which case just return the default value of T 
+					if ((object.ReferenceEquals(scalar, DBNull.Value)))
+					{
+						scalar = default(T);
+					}
 
-				    try
-				    {
-                        //Attempt to cast
-                        return (T)scalar;
-				    }
-				    catch (InvalidCastException)
-				    {
-				        //If cast failed, then provide a more detailed message stating what type was received and what type was expected
-				        throw new InvalidCastException(
-				            String.Format("Cannot cast what was received from the database: '{0}' to the specified type '{1}'",
-				                          scalar.GetType.FullName, typeof (T).FullName));
-				    }
+					try
+					{
+						//Attempt to cast
+						return (T)scalar;
+					}
+					catch (InvalidCastException)
+					{
+						//If cast failed, then provide a more detailed message stating what type was received and what type was expected
+						throw new InvalidCastException(
+						    String.Format("Cannot cast what was received from the database: '{0}' to the specified type '{1}'",
+									   scalar.GetType.FullName, typeof(T).FullName));
+					}
 				}
 			}
 		}
@@ -204,7 +278,7 @@
 		/// The table columns and the object properties MUST line up. 
 		/// Use overload if you wish to provide column mappings
 		/// </remarks>
-		public static void BulkInsert<T>(string tablename, List<T> data)
+		public void BulkInsert<T>(string tablename, List<T> data)
 		{
 			BulkInsert(tablename, data.ToDataTable());
 		}
@@ -212,7 +286,7 @@
 		/// <summary>
 		/// Bulk insert data from a list of objects into a table. This method allows you to provide your own property to column mapping
 		/// </summary>
-		public static void BulkInsert<T>(string tablename, List<T> data, Dictionary<string, string> mappings)
+		public void BulkInsert<T>(string tablename, List<T> data, Dictionary<string, string> mappings)
 		{
 			BulkInsert(tablename, data.ToDataTable(), mappings);
 		}
@@ -224,7 +298,7 @@
 		/// The table columns and the datatable columns MUST line up. 
 		/// Use overload if you wish to provide column mappings
 		/// </remarks>
-		public static void BulkInsert(string tablename, DataTable data)
+		public void BulkInsert(string tablename, DataTable data)
 		{
 			BulkInsert(tablename, data, null);
 		}
@@ -232,7 +306,7 @@
 		/// <summary>
 		/// Bulk insert data from a datatable into a table. This method allows you to provide your own property to column mapping
 		/// </summary>
-		public static void BulkInsert(string tablename, DataTable data, Dictionary<string, string> mappings)
+		public void BulkInsert(string tablename, DataTable data, Dictionary<string, string> mappings)
 		{
 			dynamic connstring = GetConnection().ConnectionString;
 
@@ -257,34 +331,78 @@
 		}
 
 		/// <summary>
+		/// Begin a transaction session
+		/// This will assume an unspecied IsolationLevel
+		/// </summary>
+		/// <returns>The session created - nested or otherwise</returns>
+		/// <remarks>
+		/// When a session is created using this method then that session is stored with the WhipperSnapper instance.
+		/// So if that instance is used in multiple thread simultaneously then all DB interaction done through the 
+		/// WhipperSnapper instance will be on the same transaction and connection.
+		/// 
+		/// Note - only one session will be created per WhipperSnapper instance. You cannot utilize this method to create subsequent nested sessions.
+		/// </remarks>
+		public Session.Session BeginSession()
+		{
+			if (_CreatedSession == null)
+			{
+				this._CreatedSession = Session.Session.GetSession(this.ConnectionString, IsolationLevel.Unspecified);
+			}
+			return _CreatedSession;
+		}
+
+		/// <summary>
+		/// Begin a transaction session
+		/// </summary>
+		/// <param name="isolevel">The isolation level for the transaction to use</param>
+		/// <returns>The session created - nested or otherwise</returns>
+		/// <remarks>
+		/// When a session is created using this method then that session is stored with the WhipperSnapper instance.
+		/// So if that instance is used in multiple thread simultaneously then all DB interaction done through the 
+		/// WhipperSnapper instance will be on the same transaction and connection.
+		/// 
+		/// Note - only one session will be created per WhipperSnapper instance. You cannot utilize this method to create subsequent nested sessions.
+		/// </remarks>
+		public Session.Session BeginSession(IsolationLevel isolevel)
+		{
+			if (_CreatedSession == null)
+			{
+				this._CreatedSession = Session.Session.GetSession(this.ConnectionString, isolevel);
+			}
+			return _CreatedSession;
+		}
+
+		#endregion
+
+		/// <summary>
 		/// Gets a Database object. Connection Abstraction should be done here
 		/// </summary>
-		private static Connection GetConnection()
+		private Connection GetConnection()
 		{
-			//If I'm in a session, default to that connection.
+			//If we created a session IN this WhipperSnapper instance then use that connection
+			if (this._CreatedSession != null)
+			{
+				if (!this._CreatedSession.IsActive)
+				{
+					//If the session isn't active then it's been disposed - so we do some late cleanup here
+					this._CreatedSession = null;
+				}
+				else
+				{
+					//If the session is active with a live transaction, then default to that.
+					return _CreatedSession.Connection;
+				}
+			}
+
+			//If I'm in a session that wasn't created by this instance, default to that connection.
 			WipperSnapper.Session.Session ses = SessionManager.GetSessionForThisThread();
 			if (ses != null)
 			{
 				return ses.Connection;
 			}
-			else
-			{
-				//We'll know which connection string based on an app setting
-				string dbName = ConfigurationManager.AppSettings["ConnectionStringKey"];
-				if (string.IsNullOrWhiteSpace(dbName))
-				{
-					throw new Exception("Missing App Setting: ConnectionStringKey");
-				}
 
-				//Go get the connection string. If it's not there throw an informative exception (vs a null ref)
-				ConnectionStringSettings connString = ConfigurationManager.ConnectionStrings[dbName];
-				if (connString == null || string.IsNullOrWhiteSpace(connString.ConnectionString))
-				{
-					throw new Exception("Missing Connection String For: " + dbName);
-				}
-
-				return Connection.GetConnection(dbName, connString.ConnectionString, true);
-			}
+			//If not transaction present then call into the connection manager to fetch/create the connection
+			return Connection.GetConnection(_ConnectionStringKey, this.ConnectionString, true);
 		}
 
 		/// <summary>
@@ -294,7 +412,7 @@
 		/// <param name="procedure">The stored procedure to execute</param>
 		/// <param name="parameters">Dictionary of all parameters</param>
 		/// <returns>a DBCommand</returns>
-		private static Command GetCommand(Connection conn, string procedure, Dictionary<string, object> parameters, List<string> outputParams)
+		private Command GetCommand(Connection conn, string procedure, Dictionary<string, object> parameters, List<string> outputParams)
 		{
 			// Create a command on the stored procedure
 			Command cmd = new Command(conn);
@@ -313,6 +431,8 @@
 			return cmd;
 		}
 
+
+		#region Dynamic Mapping
 
 		/// <summary>
 		/// Default map to DTO delegate, uses reflection and maps all columns in reader to properties of the same name
@@ -437,6 +557,9 @@
 		/// <param name="reader">The datareader result of the sql query</param>
 		/// <returns>The newly created and ppulated DTO</returns>
 		public delegate T MapToDTODelegate<T>(IDataReader reader);
+
+		#endregion
+
 
 		/// <summary>
 		/// This is used for bulk insertting. 

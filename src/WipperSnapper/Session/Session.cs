@@ -42,6 +42,7 @@
 			this.SessionID = Guid.NewGuid();
 
 			//Create savepoint transaction
+			this._Connection = parent._Connection;
 			this._Transaction = new Transaction(parent.Connection, this.SessionID, isoLevel);
 
 			//Set parent/child stuff
@@ -78,6 +79,21 @@
 		/// </summary>
 		public Session Parent { get; protected set; }
 
+		/// <summary>
+		/// Is this Session nested?
+		/// </summary>
+		public bool IsNested
+		{
+			get { return this.Parent == null; }
+		}
+
+		/// <summary>
+		/// Returns true if this Session has an active transaction on it
+		/// </summary>
+		public bool IsActive
+		{
+			get { return this.Transaction != null && !this.Transaction.IsEnded; }
+		}
 
 		/// <summary>
 		/// Children session
