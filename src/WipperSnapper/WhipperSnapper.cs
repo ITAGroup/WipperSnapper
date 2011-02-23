@@ -74,7 +74,11 @@
 			Session.Session sess = Session.SessionManager.GetSessionForThisThread();
 			if (sess != null)
 			{
-				if (!string.Equals(sess.Connection.ConnectionString, this.ConnectionString, StringComparison.InvariantCultureIgnoreCase))
+                // Make sure at least the data source matches..
+                SqlConnectionStringBuilder sessCs = new SqlConnectionStringBuilder(sess.Connection.ConnectionString);
+                SqlConnectionStringBuilder myCs = new SqlConnectionStringBuilder(this.ConnectionString);
+
+				if (!string.Equals(sessCs.DataSource, myCs.DataSource, StringComparison.InvariantCultureIgnoreCase))
 				{
 					throw new Exception("Trying to open a connection to '" + this.ConnectionString + "' when we're IN an session for the connection '" + sess.Connection.ConnectionString + "'. WhipperSnapper (ADO.NET actually) doesn't support cross-database transactions. We can't do this.");
 				}
