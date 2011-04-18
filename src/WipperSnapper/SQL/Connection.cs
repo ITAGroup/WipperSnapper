@@ -47,10 +47,14 @@
 		{
 			if (Connection._EstablishedConnections.Contains(UniqueName))
 			{
+				// Make sure at least the data source matches..
+				SqlConnectionStringBuilder storedCs = new SqlConnectionStringBuilder(Connection._EstablishedConnections[UniqueName].ConnectionString);
+				SqlConnectionStringBuilder myCs = new SqlConnectionStringBuilder(ConnectionString);
+
 				// Little safety here to make sure we're not going to accidentially connect to the wrong location
-				if (Connection._EstablishedConnections[UniqueName].ConnectionString != ConnectionString)
+				if (!string.Equals(storedCs.DataSource, myCs.DataSource, StringComparison.InvariantCultureIgnoreCase))
 				{
-					throw new Exception("Attempting to get a connection with the same unique name '" + UniqueName + "' but with different connection string");
+					throw new Exception("Attempting to get a connection with the same unique name '" + UniqueName + "' but with different connection string." + string.Format("Pooled: {0}, Expected: {1}", Connection._EstablishedConnections[UniqueName].ConnectionString, ConnectionString));
 				}
 
 				return Connection._EstablishedConnections[UniqueName];

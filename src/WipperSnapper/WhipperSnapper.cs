@@ -74,9 +74,9 @@
 			Session.Session sess = Session.SessionManager.GetSessionForThisThread();
 			if (sess != null)
 			{
-                // Make sure at least the data source matches..
-                SqlConnectionStringBuilder sessCs = new SqlConnectionStringBuilder(sess.Connection.ConnectionString);
-                SqlConnectionStringBuilder myCs = new SqlConnectionStringBuilder(this.ConnectionString);
+				// Make sure at least the data source matches..
+				SqlConnectionStringBuilder sessCs = new SqlConnectionStringBuilder(sess.Connection.ConnectionString);
+				SqlConnectionStringBuilder myCs = new SqlConnectionStringBuilder(this.ConnectionString);
 
 				if (!string.Equals(sessCs.DataSource, myCs.DataSource, StringComparison.InvariantCultureIgnoreCase))
 				{
