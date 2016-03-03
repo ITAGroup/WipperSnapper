@@ -11,26 +11,9 @@
 	using WipperSnapper.Session;
 
 	/// <summary>
-	/// Whipper Snapper - someone who is unimportant but cheeky and presumptuous. 
-	/// 
-	/// Database abstraction is just that. It's annoying. It's *really* not the center of the universe but it's always treated as such. 
-	/// Why? Because it's a pain in the ass and defines how your system is coded. I'm sick of that nonsense. So, this is a library to
-	/// take away the pain of having to worry about how to get shit to your database.
-	/// 
-	/// This library does NOT attempt to define how you get your shit IN your database, only how to get shit TO your database. 
-	/// Defining how to get shit IN your database is presumptuous. You're a programmer, you can figure that part out on your own.
-	/// For better or worse.
+	/// Whipper Snapper - A simple and lightweight library for mapping database queries to objects. 
 	/// 
 	/// To use this you only need to put the code in your solution and setup 1 config and a connection string. End of story. 
-	/// - No inheriting multiple base classs, implementing an interface, and writing your own factory.
-	/// - No writing types out into your web config
-	/// - No f*cking XML!  For the love of Christ i'm just transferring data. No godamn xml!
-	/// - No pre/post compilation.
-	/// - No "oh you shouldn't use this in a batch process" 
-	/// - No "oh you're using that wrong, didn't you know?
-	/// 
-	/// Future Items:
-	/// - Add in ORM feature - SQL building based on attributed objects
 	/// </summary>
 	public sealed class WhipperSnapper
 	{
